@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Array Bounds Explorer</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- MathJax Configuration -->
+    <script>
+        window.MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']]
+            }
+        };
+    </script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    
+    <style>
+        body { background-color: #f8fafc; font-family: system-ui, -apple-system, sans-serif; overflow-x: hidden; }
+        .accent-top-blue { border-top: 4px solid #3b82f6; }
+        .accent-top-emerald { border-top: 4px solid #10b981; }
+        .accent-top-amber { border-top: 4px solid #f59e0b; }
+        .accent-top-purple { border-top: 4px solid #8b5cf6; }
+        
+        .array-block, .tree-block { transition: all 0.3s ease; }
+        .hidden-content { display: none; }
+        .slide-down { animation: slideDown 0.4s ease-out forwards; }
+        
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        textarea::-webkit-scrollbar { height: 8px; width: 8px; }
+        textarea::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px;}
+        textarea::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm sticky top-0 z-50">
+        <div class="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <i class="fa-solid fa-compass-drafting text-blue-600 text-2xl"></i>
+                <h1 class="font-bold text-xl tracking-tight text-slate-800" data-i18n="headerTitle">Array Bounds Explorer: The "Off-By-One" Trap</h1>
+            </div>
+            <div class="flex items-center gap-6">
+                <span class="text-sm font-medium text-slate-500 hidden md:block">Created by Sam Li</span>
+                <button onclick="toggleLanguage()" class="flex items-center gap-2 bg-slate-100 hover:bg-slate-200 px-4 py-2 rounded-full text-sm font-semibold transition-colors focus:outline-none">
+                    <i class="fa-solid fa-language text-slate-600"></i>
+                    <span id="langLabel">繁體中文</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="flex-grow max-w-6xl mx-auto px-6 py-10 w-full flex flex-col gap-10">
+
+        <!-- Learning Objective (Global Intro) -->
+        <div class="bg-blue-50 rounded-2xl p-8 flex flex-col md:flex-row gap-6 items-start shadow-sm border border-blue-100">
+            <div class="bg-blue-600 text-white p-4 rounded-xl shadow-sm flex-shrink-0 mt-1">
+                <i class="fa-solid fa-bullseye text-3xl"></i>
+            </div>
+            <div>
+                <h2 class="text-2xl font-bold text-blue-900 mb-3" data-i18n="objTitle">Learning Objective</h2>
+                <p class="text-lg leading-loose text-blue-800" data-i18n="objDesc">
+                    Master the concept of Zero-based Indexing. We will use the everyday "Fencepost Analogy" to logically deduce loop boundaries, helping you permanently avoid the infamous Array Out of Bounds (Off-By-One) errors in programming.
+                </p>
+            </div>
+        </div>
+
+        <!-- Concept & Analogy -->
+        <div class="bg-white rounded-2xl shadow-sm p-8 relative accent-top-emerald">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
+                <i class="fa-solid fa-tree text-emerald-500"></i>
+                <span data-i18n="analogyTitle">The Fencepost Analogy</span>
+            </h2>
+            <p class="text-lg leading-loose mb-8 text-slate-700" data-i18n="analogyText">
+                Imagine a straight road that is 10 meters long. If you plant one tree every 1 meter, starting exactly at the 0-meter mark and ending at the 10-meter mark, how many trees will you plant? Intuition says 10, but let's map it out:
+            </p>
+
+            <div class="bg-slate-50 p-8 rounded-xl border border-slate-200 mb-6">
+                <div id="treeLineContainer" class="relative w-full h-24 mt-4">
+                    <!-- Static 10 intervals / 11 trees injected via JS on load -->
+                </div>
+                <div class="flex flex-col md:flex-row justify-between items-center mt-8 text-lg font-semibold text-slate-600 bg-white p-5 rounded-lg shadow-sm border border-slate-100 gap-4">
+                    <span data-i18n="intervalsLabel" class="flex items-center gap-2"><i class="fa-solid fa-ruler-horizontal text-slate-400"></i> Road Length (Intervals): 10</span>
+                    <span class="text-emerald-600 flex items-center gap-2" data-i18n="treesLabel"><i class="fa-solid fa-tree text-emerald-500"></i> Total Trees (Points): 11</span>
+                </div>
+            </div>
+            <div class="bg-emerald-50 p-6 rounded-xl border border-emerald-100">
+                <p class="text-lg leading-loose text-emerald-900" data-i18n="analogyConclusion">
+                    <strong>Why 11?</strong> Because trees represent "points", while the 10 meters represent "intervals". When you start counting from 0, you always need one extra point to close off the final interval!
+                </p>
+            </div>
+        </div>
+
+        <!-- Interactive Simulator (Removed N Slider, Fixed N=5 for clarity) -->
+        <div class="bg-white rounded-2xl shadow-sm p-8 relative accent-top-blue">
+            <div class="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+                <h2 class="text-2xl font-bold flex items-center gap-3">
+                    <i class="fa-solid fa-microchip text-blue-500"></i>
+                    <span data-i18n="simTitle">Interactive Memory Simulator</span>
+                </h2>
+                <button id="btnPlay" onclick="playSimulation()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-xl transition-colors flex items-center gap-2 focus:outline-none shadow-sm">
+                    <i class="fa-solid fa-play"></i> <span data-i18n="btnPlay">Play Traversal</span>
+                </button>
+            </div>
+            
+            <p class="text-lg leading-loose mb-8 text-slate-700" data-i18n="simDesc">
+                Let's apply this to computer memory. Unlike humans who count items starting from 1, computers assign positions (called 'Indices') starting from 0. 
+                Below is an array of <strong>size 5</strong>. Select a "Loop Condition" to see how the computer reads it, and watch out for crashes!
+            </p>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 bg-slate-50 p-8 rounded-xl border border-slate-200 items-center">
+                <div class="flex items-center gap-4">
+                    <span class="font-semibold text-slate-700 text-lg" data-i18n="ctrlLength">Array Size (N):</span>
+                    <span class="bg-blue-100 text-blue-800 px-4 py-2 rounded-lg font-bold text-xl border border-blue-200">5</span>
+                </div>
+                <div class="flex flex-col gap-3">
+                    <label class="font-semibold text-slate-700 text-lg" data-i18n="ctrlStrategy">Loop Condition:</label>
+                    <select id="selectStrategy" class="p-3 border border-slate-300 rounded-lg bg-white shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-lg font-mono cursor-pointer">
+                        <option value="<N">i < N (Standard Safe Practice)</option>
+                        <option value="<=N">i <= N (Guaranteed Crash)</option>
+                        <option value="<N-1">i < N - 1 (Misses Last Item)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Code Display -->
+            <div class="mb-8 rounded-xl overflow-hidden border border-slate-800 shadow-lg">
+                <div class="bg-slate-800 flex justify-between items-center px-6 py-3 border-b border-slate-700">
+                    <span class="text-slate-300 font-mono text-sm tracking-wider" data-i18n="codeTitle">CODE EXECUTION</span>
+                    <div class="flex gap-2">
+                        <button onclick="setCodeLang('python')" id="btnPython" class="text-sm px-4 py-1.5 rounded-md bg-blue-600 text-white font-semibold shadow-sm transition">Python</button>
+                        <button onclick="setCodeLang('cpp')" id="btnCpp" class="text-sm px-4 py-1.5 rounded-md bg-slate-700 text-slate-300 font-semibold hover:bg-slate-600 transition">C++</button>
+                    </div>
+                </div>
+                <div class="bg-slate-900 p-8 font-mono text-lg text-emerald-400 overflow-x-auto leading-relaxed" id="codeDisplay"></div>
+            </div>
+
+            <!-- Visualizer -->
+            <div class="bg-white p-8 rounded-xl border border-slate-200 shadow-inner min-h-[220px] flex flex-col justify-center">
+                <div class="flex flex-wrap justify-center items-center gap-6 pb-2" id="arrayVisualContainer"></div>
+                <div id="simFeedback" class="mt-8 p-5 rounded-xl font-bold text-center text-lg hidden transition-all border-l-4"></div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+            <!-- Misconceptions -->
+            <div class="bg-white rounded-2xl shadow-sm p-8 relative accent-top-amber">
+                <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
+                    <i class="fa-solid fa-triangle-exclamation text-amber-500"></i>
+                    <span data-i18n="misconceptionTitle">Common Misconceptions</span>
+                </h2>
+                <ul class="space-y-8 text-lg leading-loose text-slate-700">
+                    <li class="flex gap-4 items-start">
+                        <div class="bg-red-50 p-2 rounded-lg flex-shrink-0 mt-1">
+                            <i class="fa-solid fa-xmark text-red-500 text-xl"></i>
+                        </div>
+                        <div>
+                            <strong class="text-slate-900 block mb-2 text-xl" data-i18n="myth1Title">Myth: Length = Max Index</strong>
+                            <span data-i18n="myth1Desc">"If an array has a length of 10, the very last item is at index 10."</span>
+                            <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 mt-4 rounded-r-lg">
+                                <span class="text-emerald-800 text-base font-medium" data-i18n="fact1">Fact: Due to 0-based counting, the maximum safe index is ALWAYS (Length - 1). For length 10, the last item is at index 9.</span>
+                            </div>
+                        </div>
+                    </li>
+                    <li class="flex gap-4 items-start">
+                        <div class="bg-red-50 p-2 rounded-lg flex-shrink-0 mt-1">
+                            <i class="fa-solid fa-xmark text-red-500 text-xl"></i>
+                        </div>
+                        <div>
+                            <strong class="text-slate-900 block mb-2 text-xl" data-i18n="myth2Title">Myth: Using "<=" is safer</strong>
+                            <span data-i18n="myth2Desc">"Using `<=` in a loop ensures we don't accidentally skip the last element."</span>
+                            <div class="bg-emerald-50 border-l-4 border-emerald-500 p-4 mt-4 rounded-r-lg">
+                                <span class="text-emerald-800 text-base font-medium" data-i18n="fact2">Fact: Writing `i <= Length` is a guaranteed crash! The industry standard is strictly using `< Length`.</span>
+                            </div>
+                        </div>
+                    </li>
+                </ul>
+            </div>
+
+            <!-- Takeaways -->
+            <div class="bg-white rounded-2xl shadow-sm p-8 relative accent-top-purple flex flex-col">
+                <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
+                    <i class="fa-solid fa-lightbulb text-purple-500"></i>
+                    <span data-i18n="takeawayTitle">Key Takeaways</span>
+                </h2>
+                <ul class="space-y-6 text-lg leading-loose text-slate-700 flex-grow">
+                    <li class="flex items-start gap-3">
+                        <i class="fa-solid fa-check text-purple-500 mt-2"></i>
+                        <span data-i18n="ta1"><strong>Zero-Based (0-based Indexing):</strong> Computer memory counts from 0, just like the 0cm mark on a physical ruler.</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <i class="fa-solid fa-check text-purple-500 mt-2"></i>
+                        <span data-i18n="ta2"><strong>The Golden Formula:</strong> The last valid position is always $N - 1$.</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <i class="fa-solid fa-check text-purple-500 mt-2"></i>
+                        <span data-i18n="ta3"><strong>Standard C++ Loop:</strong> `for (i = 0; i < N; i++)` runs exactly N times without crashing.</span>
+                    </li>
+                    <li class="flex items-start gap-3">
+                        <i class="fa-solid fa-check text-purple-500 mt-2"></i>
+                        <span data-i18n="ta4"><strong>Python's Elegance:</strong> Python's `range(N)` automatically stops before reaching N (acting exactly like `< N`), preventing errors by design.</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+        <!-- Think & Link -->
+        <div class="bg-white rounded-2xl shadow-sm p-8 relative accent-top-blue mb-10">
+            <h2 class="text-2xl font-bold mb-6 flex items-center gap-3">
+                <i class="fa-solid fa-brain text-blue-500"></i>
+                <span data-i18n="thinkTitle">Think & Link</span>
+            </h2>
+            <div class="bg-slate-50 p-8 rounded-xl border border-slate-200 mb-6">
+                <p class="text-lg leading-loose text-slate-800 font-medium mb-6" data-i18n="thinkQuestion">
+                    Scenario: You have an array storing the test scores of $N$ students ($N \ge 3$). If you ONLY want to calculate the average of the <strong>last 3 students</strong>, what should the starting value of your loop variable 'i' be? Try to deduce it logically.
+                </p>
+                <textarea id="thinkInput" class="w-full h-40 p-5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:outline-none text-lg resize-none mb-6 shadow-sm transition-colors" placeholder="Draft your logic here before checking the answer..."></textarea>
+                <button id="btnCompare" onclick="revealAnswer()" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl transition shadow-md w-full md:w-auto flex justify-center items-center gap-3">
+                    <i class="fa-solid fa-list-check"></i> <span data-i18n="btnCompare">Compare with Answer</span>
+                </button>
+            </div>
+            
+            <div id="answerBox" class="hidden-content bg-emerald-50 border-l-4 border-emerald-500 p-8 rounded-r-xl mt-6 shadow-sm">
+                <h3 class="text-xl font-bold text-emerald-900 mb-4" data-i18n="ansTitle">Detailed Deduction</h3>
+                <p class="text-lg leading-loose text-slate-800 mb-5" data-i18n="ansP1">The correct starting index is: <strong>$N - 3$</strong>.</p>
+                <div class="bg-white p-6 rounded-lg border border-emerald-100 mb-5">
+                    <p class="text-lg leading-loose text-slate-700" data-i18n="ansP2">
+                        <strong>Logical Deduction:</strong><br>
+                        1. The very last student's score is at index $N - 1$.<br>
+                        2. Stepping one back, the second to last student is at $N - 2$.<br>
+                        3. Stepping one more back, the third to last student is at $N - 3$.<br>
+                        To loop continuously through exactly these 3 students, we must start our reading at index $N - 3$.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Quiz -->
+            <div class="mt-12 pt-10 border-t border-slate-100">
+                <h3 class="text-xl font-bold mb-6 flex items-center gap-3 text-slate-800">
+                    <i class="fa-solid fa-clipboard-question text-indigo-500"></i>
+                    <span data-i18n="quizTitle">Mini-Quiz</span>
+                </h3>
+                <div class="space-y-6">
+                    <p class="text-lg leading-loose text-slate-700 font-medium bg-indigo-50 p-5 rounded-xl border border-indigo-100" data-i18n="quizQ">
+                        Given an array `data` with a length of exactly 50. Which of the following loop conditions will <strong>strictly guarantee an Out of Bounds crash</strong>?
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        <label class="flex flex-col items-center justify-center p-6 rounded-xl border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 cursor-pointer transition text-center relative group">
+                            <input type="radio" name="quiz" value="A" class="w-5 h-5 text-blue-600 absolute top-4 left-4" onchange="handleWrongQuiz()">
+                            <code class="text-lg text-slate-700 font-mono mt-2">i = 0; i < 50</code>
+                        </label>
+                        <label class="flex flex-col items-center justify-center p-6 rounded-xl border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 cursor-pointer transition text-center relative group">
+                            <input type="radio" name="quiz" value="B" class="w-5 h-5 text-blue-600 absolute top-4 left-4" onchange="handleWrongQuiz()">
+                            <code class="text-lg text-slate-700 font-mono mt-2">i = 0; i <= 49</code>
+                        </label>
+                        <label class="flex flex-col items-center justify-center p-6 rounded-xl border-2 border-slate-200 hover:border-slate-300 hover:bg-slate-50 cursor-pointer transition text-center relative group" id="correctOption">
+                            <input type="radio" name="quiz" value="C" class="w-5 h-5 text-blue-600 absolute top-4 left-4" onchange="checkQuiz()">
+                            <code class="text-lg text-slate-700 font-mono mt-2">i = 1; i <= 50</code>
+                        </label>
+                    </div>
+                    
+                    <div id="quizFeedbackWrong" class="hidden-content p-6 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 shadow-sm text-lg">
+                        <i class="fa-solid fa-circle-xmark mr-2 text-amber-500"></i> <span data-i18n="quizWrongExp">Think again! A length of 50 means the maximum valid index is 49. Try plugging the loop's final condition step into your mind—which index is it actually trying to read?</span>
+                    </div>
+
+                    <div id="quizFeedback" class="hidden-content p-6 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 shadow-sm text-lg">
+                        <strong class="text-emerald-700 flex items-center gap-2 mb-3 text-xl"><i class="fa-solid fa-circle-check"></i> <span data-i18n="quizCorrect">Correct! Let's break it down:</span></strong>
+                        <span data-i18n="quizExp" class="leading-loose block">Option C uses <code><= 50</code>. When the loop variable reaches <code>i = 50</code>, the condition evaluates to TRUE. The computer then attempts to access the 51st element (Index 50), which doesn't exist, causing an instant crash! (Additionally, starting at i=1 incorrectly skips the very first element.)</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- Core Logic & State ---
+        let currentLang = 'en';
+        let codeLang = 'python';
+        const FIXED_N = 5; // Simplified pedagogical model: Fixed N
+        let state = { strategy: '<N' };
+        let isAnimating = false;
+
+        const dict = {
+            en: {
+                headerTitle: "Array Bounds Explorer: The \"Off-By-One\" Trap",
+                langToggle: "繁體中文",
+                objTitle: "Learning Objective",
+                objDesc: "Master the concept of Zero-based Indexing. We will use the everyday \"Fencepost Analogy\" to logically deduce loop boundaries, helping you permanently avoid the infamous Array Out of Bounds (Off-By-One) errors in programming.",
+                analogyTitle: "The Fencepost Analogy",
+                analogyText: "Imagine a straight road that is 10 meters long. If you plant one tree every 1 meter, starting exactly at the 0-meter mark and ending at the 10-meter mark, how many trees will you plant? Intuition says 10, but let's map it out:",
+                intervalsLabel: "Road Length (Intervals): ",
+                treesLabel: "Total Trees (Points): ",
+                analogyConclusion: "<strong>Why 11?</strong> Because trees represent \"points\", while the 10 meters represent \"intervals\". When you start counting from 0, you always need one extra point to close off the final interval!",
+                simTitle: "Interactive Memory Simulator",
+                btnPlay: "Play Traversal",
+                simDesc: "Let's apply this to computer memory. Unlike humans who count items starting from 1, computers assign positions (called 'Indices') starting from 0. Below is an array of <strong>size 5</strong>. Select a \"Loop Condition\" to see how the computer reads it, and watch out for crashes!",
+                ctrlLength: "Array Size (N):",
+                ctrlStrategy: "Loop Condition:",
+                codeTitle: "CODE EXECUTION",
+                misconceptionTitle: "Common Misconceptions",
+                myth1Title: "Myth: Length = Max Index",
+                myth1Desc: "\"If an array has a length of 10, the very last item is at index 10.\"",
+                fact1: "Fact: Due to 0-based counting, the maximum safe index is ALWAYS (Length - 1). For length 10, the last item is at index 9.",
+                myth2Title: "Myth: Using \"<=\" is safer",
+                myth2Desc: "\"Using `<=` in a loop ensures we don't accidentally skip the last element.\"",
+                fact2: "Fact: Writing `i <= Length` is a guaranteed crash! The industry standard is strictly using `< Length`.",
+                takeawayTitle: "Key Takeaways",
+                ta1: "<strong>Zero-Based (0-based Indexing):</strong> Computer memory counts from 0, just like the 0cm mark on a physical ruler.",
+                ta2: "<strong>The Golden Formula:</strong> The last valid position is always $N - 1$.",
+                ta3: "<strong>Standard C++ Loop:</strong> `for (i = 0; i < N; i++)` runs exactly N times without crashing.",
+                ta4: "<strong>Python's Elegance:</strong> Python's `range(N)` automatically stops before reaching N (acting exactly like `< N`), preventing errors by design.",
+                thinkTitle: "Think & Link",
+                thinkQuestion: "Scenario: You have an array storing the test scores of $N$ students ($N \\ge 3$). If you ONLY want to calculate the average of the <strong>last 3 students</strong>, what should the starting value of your loop variable 'i' be? Try to deduce it logically.",
+                btnCompare: "Compare with Answer",
+                ansTitle: "Detailed Deduction",
+                ansP1: "The correct starting index is: <strong>$N - 3$</strong>.",
+                ansP2: "<strong>Logical Deduction:</strong><br>1. The very last student's score is at index $N - 1$.<br>2. Stepping one back, the second to last student is at $N - 2$.<br>3. Stepping one more back, the third to last student is at $N - 3$.<br>To loop continuously through exactly these 3 students, we must start our reading at index $N - 3$.",
+                quizTitle: "Mini-Quiz",
+                quizQ: "Given an array `data` with a length of exactly 50. Which of the following loop conditions will <strong>strictly guarantee an Out of Bounds crash</strong>?",
+                quizWrongExp: "Think again! A length of 50 means the maximum valid index is 49. Try plugging the loop's final condition step into your mind—which index is it actually trying to read?",
+                quizCorrect: "Correct! Let's break it down:",
+                quizExp: "Option C uses <code><= 50</code>. When the loop variable reaches <code>i = 50</code>, the condition evaluates to TRUE. The computer then attempts to access the 51st element (Index 50), which doesn't exist, causing an instant crash! (Additionally, starting at i=1 incorrectly skips the very first element.)",
+                feedbackPerfect: "Perfect Traversal! (Safe & Complete)",
+                feedbackShort: "Incomplete Traversal (Missed the last element)",
+                feedbackError: "CRASH: Array Index Out of Bounds!"
+            },
+            tc: {
+                headerTitle: "陣列邊界：告別「差一錯誤」",
+                langToggle: "English",
+                objTitle: "學習目標 (Learning Objective)",
+                objDesc: "深入理解「零基準索引」(Zero-based Indexing)。我們將透過日常的「種樹類比」來推導迴圈邊界，從根本理解並徹底防範在編程中極易發生的陣列越界 (Out of Bounds) 或差一錯誤 (Off-By-One Error)。",
+                analogyTitle: "圍欄與種樹類比 (Fencepost Analogy)",
+                analogyText: "你有沒有想過這個問題：想像一條 10 米長的直路，需要每隔 1 米種一棵樹。如果從起點 (0 米) 一路種到終點 (10 米)，總共會種多少棵樹？直覺上多數人會回答 10 棵，但我們來拆解一下圖解：",
+                intervalsLabel: "路徑總長度 (間距): ",
+                treesLabel: "樹木總數 (節點): ",
+                analogyConclusion: "<strong>為什麼是 11 棵？</strong> 因為樹木是標示距離的「節點」(Points)，而 10 米是「間距」(Intervals)。當我們由 0 開始計數，必定需要多一個節點來完成最後的間距！",
+                simTitle: "互動式記憶體模擬器",
+                btnPlay: "播放讀取過程",
+                simDesc: "我們將這個概念套用到電腦記憶體中。人類習慣從 1 開始數數，但電腦計算陣列位置（我們稱為「索引」 Index）是從 0 開始的。下方有一個<strong>長度為 5</strong> 的陣列，請選擇不同的「迴圈條件 (Loop Condition)」，看看電腦會怎樣讀取，並小心程式崩潰！",
+                ctrlLength: "陣列長度 (N):",
+                ctrlStrategy: "迴圈條件 (Loop Condition):",
+                codeTitle: "程式碼動態模擬",
+                misconceptionTitle: "常見迷思 (Misconceptions)",
+                myth1Title: "迷思：長度 = 最大索引",
+                myth1Desc: "「既然陣列長度是 10，最後一筆資料的索引理應就是 10。」",
+                fact1: "事實：由於電腦是從 0 開始計數的，最大安全索引永遠是「長度 - 1」。對於長度 10 的陣列，最後一筆資料的索引是 9。",
+                myth2Title: "迷思：用「<=」比較安全",
+                myth2Desc: "「使用 `<=` 作為迴圈條件，可以確保我們不會不小心遺漏最後一筆資料。」",
+                fact2: "事實：寫下 `i <= 長度` 絕對會觸發越界崩潰 (Crash)！在業界與學術規範中，標準安全寫法永遠是嚴格小於 (`i < 長度`)。",
+                takeawayTitle: "重點總結 (Key Takeaways)",
+                ta1: "<strong>零基準 (Zero-Based)：</strong>電腦計算記憶體位置是從 0 開始的，如同實體間尺的起點是 0cm。",
+                ta2: "<strong>黃金安全公式：</strong>陣列的最後一個有效位置永遠是 $N - 1$。",
+                ta3: "<strong>C++ 標準迴圈：</strong>使用 `for (i = 0; i < N; i++)` 能準確執行 N 次，完美對應索引 0 到 N-1，絕對不會當機。",
+                ta4: "<strong>Python 的優雅設計：</strong>Python 的 `range(N)` 函數在設計上已預設在到達 N 之前停止（等同於 `< N` 的效果），從根本上防止了越界錯誤。",
+                thinkTitle: "思考與連結 (Think & Link)",
+                thinkQuestion: "情境應用：假設一個陣列儲存了 $N$ 個學生的考試分數（$N \\ge 3$）。如果現在只需要計算「最後 3 位學生」的平均分，你的迴圈變數 `i` 應該從哪個值開始？請嘗試用邏輯推導出來。",
+                btnCompare: "核對推導邏輯",
+                ansTitle: "詳細邏輯解析",
+                ansP1: "正確的起始索引是： <strong>$N - 3$</strong>。",
+                ansP2: "<strong>邏輯推導：</strong><br>1. 陣列中最後一位學生的索引必定是 $N - 1$。<br>2. 往前倒退一步，倒數第二位學生的索引是 $N - 2$。<br>3. 再往前倒退一步，倒數第三位學生的索引是 $N - 3$。<br>因此，若要連續且精準地讀取這 3 位學生的資料，迴圈的起點必須設定為 $N - 3$。",
+                quizTitle: "邏輯小測驗 (Mini-Quiz)",
+                quizQ: "已知陣列 `data` 的長度恰好為 50。下列哪一種迴圈條件寫法，<strong>必定會觸發陣列越界 (Out of Bounds) 錯誤導致程式崩潰</strong>？",
+                quizWrongExp: "請再仔細思考！長度 50 代表最大的安全索引只有到 49。試著將該條件代入迴圈的最後一步，看看程式實際上是在嘗試讀取哪一個索引？",
+                quizCorrect: "完全正確！解析如下：",
+                quizExp: "選項 C 使用了 <code><= 50</code>。當迴圈變數遞增到 <code>i = 50</code> 時，條件依然為 TRUE (真)。電腦隨即嘗試讀取不存在的第 51 筆資料（即 Index 50），導致程式瞬間崩潰！(補充：這個寫法從 <code>i = 1</code> 開始，也錯誤地遺漏了第一筆資料。)",
+                feedbackPerfect: "完美讀取 (安全無誤)",
+                feedbackShort: "未完全讀取 (遺漏了最後的元素)",
+                feedbackError: "崩潰：陣列索引越界 (Out of Bounds!)"
+            }
+        };
+
+        const uiSelectStrategy = document.getElementById('selectStrategy');
+        const treeContainer = document.getElementById('treeLineContainer');
+        const arrayContainer = document.getElementById('arrayVisualContainer');
+        const codeDisplay = document.getElementById('codeDisplay');
+        const simFeedback = document.getElementById('simFeedback');
+        const thinkInput = document.getElementById('thinkInput');
+        const btnPlay = document.getElementById('btnPlay');
+
+        uiSelectStrategy.addEventListener('change', (e) => {
+            if(isAnimating) return;
+            state.strategy = e.target.value;
+            updateViz();
+        });
+
+        function toggleLanguage() {
+            currentLang = currentLang === 'en' ? 'tc' : 'en';
+            document.getElementById('langLabel').innerText = currentLang === 'en' ? '繁體中文' : 'English';
+            
+            document.querySelectorAll('[data-i18n]').forEach(el => {
+                const key = el.getAttribute('data-i18n');
+                if (dict[currentLang][key]) el.innerHTML = dict[currentLang][key];
+            });
+
+            // Handle Select Options translations manually
+            if (currentLang === 'en') {
+                uiSelectStrategy.options[0].text = "i < N (Standard Safe Practice)";
+                uiSelectStrategy.options[1].text = "i <= N (Guaranteed Crash)";
+                uiSelectStrategy.options[2].text = "i < N - 1 (Misses Last Item)";
+            } else {
+                uiSelectStrategy.options[0].text = "i < N (標準安全寫法)";
+                uiSelectStrategy.options[1].text = "i <= N (必定越界崩潰)";
+                uiSelectStrategy.options[2].text = "i < N - 1 (遺漏最後一筆資料)";
+            }
+
+            if(thinkInput && !thinkInput.disabled) {
+                thinkInput.placeholder = currentLang === 'en' ? 
+                    "Draft your logic here before checking the answer..." : 
+                    "在查看解析前，試著在這裡寫下你的推導過程...";
+            }
+
+            if (window.MathJax) MathJax.typesetPromise();
+            updateViz();
+        }
+
+        function setCodeLang(lang) {
+            if(isAnimating) return;
+            codeLang = lang;
+            const activeClass = "text-sm px-4 py-1.5 rounded-md bg-blue-600 text-white font-semibold shadow-sm transition";
+            const inactiveClass = "text-sm px-4 py-1.5 rounded-md bg-slate-700 text-slate-300 font-semibold hover:bg-slate-600 transition";
+            
+            document.getElementById('btnPython').className = lang === 'python' ? activeClass : inactiveClass;
+            document.getElementById('btnCpp').className = lang === 'cpp' ? activeClass : inactiveClass;
+            updateCodeDisplay();
+        }
+
+        function updateCodeDisplay() {
+            let code = "";
+            let op = state.strategy.startsWith('<=') ? '<=' : '<';
+            let boundDisplay = state.strategy === '<N-1' ? 'N - 1' : 'N';
+            
+            if (codeLang === 'cpp') {
+                code = `<span class="text-blue-400">for</span> (<span class="text-blue-400">int</span> i = <span class="text-amber-400">0</span>; i ${op === '<' ? '&lt;' : '&lt;='} <span class="text-amber-400">${boundDisplay}</span>; i++) {<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-slate-400">// Read memory</span><br>&nbsp;&nbsp;&nbsp;&nbsp;process( array[i] );<br>}`;
+            } else {
+                let pyRange = state.strategy === '<=N' ? 'N + 1' : boundDisplay;
+                let comment = state.strategy === '<=N' ? `<span class="text-slate-500 italic ml-4"># Note: <= N forces range(N+1)</span>` : "";
+                code = `<span class="text-blue-400">for</span> i <span class="text-blue-400">in</span> <span class="text-yellow-300">range</span>(<span class="text-amber-400">${pyRange}</span>):${comment}<br>&nbsp;&nbsp;&nbsp;&nbsp;<span class="text-slate-500 italic"># Read memory</span><br>&nbsp;&nbsp;&nbsp;&nbsp;process( array[i] )`;
+            }
+            codeDisplay.innerHTML = code;
+        }
+
+        function drawStaticTrees() {
+            const staticN = 10;
+            treeContainer.innerHTML = '<div class="absolute top-1/2 left-0 right-0 h-1.5 bg-slate-300 transform -translate-y-1/2 rounded-full"></div>';
+            for (let i = 0; i <= staticN; i++) {
+                const node = document.createElement('div');
+                node.className = "absolute top-1/2 transform -translate-y-1/2 -translate-x-1/2 flex flex-col items-center";
+                node.style.left = `${(i / staticN) * 100}%`;
+                node.innerHTML = `<i class="fa-solid fa-tree text-emerald-500 text-3xl mb-2"></i><span class="text-sm font-bold bg-white border border-slate-200 px-2 py-0.5 rounded-md shadow-sm">${i}</span>`;
+                treeContainer.appendChild(node);
+            }
+            
+            const L = dict[currentLang];
+            document.querySelector('[data-i18n="intervalsLabel"]').innerHTML = `<i class="fa-solid fa-ruler-horizontal text-slate-400"></i> ` + L.intervalsLabel + staticN;
+            document.querySelector('[data-i18n="treesLabel"]').innerHTML = `<i class="fa-solid fa-tree text-emerald-500"></i> ` + L.treesLabel + (staticN + 1);
+        }
+
+        function drawArrayLayout() {
+            arrayContainer.innerHTML = '';
+            
+            let maxIdx = state.strategy === '<N' ? FIXED_N - 1 : 
+                         state.strategy === '<=N' ? FIXED_N : 
+                         FIXED_N - 2;
+
+            for (let i = 0; i <= Math.max(FIXED_N - 1, maxIdx); i++) {
+                const wrapper = document.createElement('div');
+                wrapper.className = "flex flex-col items-center flex-shrink-0 transition-all duration-300";
+                wrapper.id = `block-${i}`;
+
+                const box = document.createElement('div');
+                
+                if (i < FIXED_N) {
+                    box.className = "w-20 h-20 flex items-center justify-center border-2 border-slate-200 bg-slate-50 text-slate-400 rounded-xl array-box transition-all duration-300";
+                    box.innerHTML = `<span class="text-2xl font-bold">A[${i}]</span>`;
+                    
+                    const indexLabel = document.createElement('span');
+                    indexLabel.className = "text-xs font-mono font-bold bg-slate-200 text-slate-600 px-2 py-1 mt-3 rounded-md array-label transition-all duration-300";
+                    indexLabel.innerText = `Index: ${i}`;
+                    
+                    wrapper.appendChild(box);
+                    wrapper.appendChild(indexLabel);
+                } else {
+                    box.className = "w-20 h-20 flex items-center justify-center border-2 border-dashed border-red-200 bg-transparent text-transparent rounded-xl array-box transition-all duration-300 opacity-0";
+                    box.innerHTML = `<i class="fa-solid fa-bomb text-3xl text-red-500"></i>`;
+                    
+                    const indexLabel = document.createElement('span');
+                    indexLabel.className = "text-xs font-mono font-bold bg-red-100 text-red-700 px-2 py-1 mt-3 rounded-md array-label transition-all duration-300 opacity-0";
+                    indexLabel.innerText = `Index: ${i}`;
+
+                    wrapper.appendChild(box);
+                    wrapper.appendChild(indexLabel);
+                }
+                arrayContainer.appendChild(wrapper);
+            }
+        }
+
+        function applyStaticHighlights() {
+            let maxIdx = state.strategy === '<N' ? FIXED_N - 1 : 
+                         state.strategy === '<=N' ? FIXED_N : 
+                         FIXED_N - 2;
+
+            for(let i=0; i<=maxIdx; i++) {
+                highlightBlock(i);
+            }
+            showFeedback(maxIdx);
+        }
+
+        function highlightBlock(index) {
+            const wrapper = document.getElementById(`block-${index}`);
+            if(!wrapper) return;
+
+            const box = wrapper.querySelector('.array-box');
+            const label = wrapper.querySelector('.array-label');
+
+            if (index < FIXED_N) {
+                // Safe access
+                box.className = "w-20 h-20 flex items-center justify-center border-2 border-blue-500 bg-blue-100 text-blue-900 rounded-xl array-box transition-all duration-300 shadow-md -translate-y-2";
+                label.className = "text-xs font-mono font-bold bg-blue-200 text-blue-800 px-2 py-1 mt-3 rounded-md array-label transition-all duration-300";
+            } else {
+                // Crash
+                box.className = "w-20 h-20 flex items-center justify-center border-2 border-dashed border-red-500 bg-red-50 text-red-700 rounded-xl array-box transition-all duration-300 transform scale-110 shadow-lg animate-pulse opacity-100";
+                label.className = "text-xs font-mono font-bold bg-red-500 text-white px-2 py-1 mt-3 rounded-md array-label transition-all duration-300 opacity-100";
+            }
+        }
+
+        function showFeedback(maxIdx) {
+            simFeedback.classList.remove('hidden');
+            const L = dict[currentLang];
+            if (maxIdx >= FIXED_N) {
+                simFeedback.className = "mt-8 p-5 rounded-xl font-bold text-center text-lg transition-all bg-red-100 text-red-800 border-l-4 border-red-600 shadow-sm w-full";
+                simFeedback.innerHTML = `<i class="fa-solid fa-triangle-exclamation mr-3 text-2xl align-middle"></i>${L.feedbackError}`;
+            } else if (maxIdx === FIXED_N - 1) {
+                simFeedback.className = "mt-8 p-5 rounded-xl font-bold text-center text-lg transition-all bg-emerald-100 text-emerald-800 border-l-4 border-emerald-600 shadow-sm w-full";
+                simFeedback.innerHTML = `<i class="fa-solid fa-check-circle mr-3 text-2xl align-middle"></i>${L.feedbackPerfect}`;
+            } else {
+                simFeedback.className = "mt-8 p-5 rounded-xl font-bold text-center text-lg transition-all bg-amber-100 text-amber-800 border-l-4 border-amber-500 shadow-sm w-full";
+                simFeedback.innerHTML = `<i class="fa-solid fa-circle-info mr-3 text-2xl align-middle"></i>${L.feedbackShort}`;
+            }
+        }
+
+        function updateViz() {
+            simFeedback.classList.add('hidden');
+            drawStaticTrees(); // Always draw 10 trees
+            updateCodeDisplay();
+            drawArrayLayout();
+            applyStaticHighlights();
+        }
+
+        const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+        async function playSimulation() {
+            if(isAnimating) return;
+            isAnimating = true;
+            btnPlay.disabled = true;
+            btnPlay.classList.add('opacity-50', 'cursor-not-allowed');
+            uiSelectStrategy.disabled = true;
+            simFeedback.classList.add('hidden');
+
+            drawArrayLayout(); // Reset array to blank state
+            
+            let maxIdx = state.strategy === '<N' ? FIXED_N - 1 : 
+                         state.strategy === '<=N' ? FIXED_N : 
+                         FIXED_N - 2;
+
+            for(let i=0; i<=maxIdx; i++) {
+                highlightBlock(i);
+                await sleep(650); // Slower delay for clear observation
+                
+                // Stop immediately if it crashed to emphasize the error
+                if(i >= FIXED_N) break;
+            }
+            
+            showFeedback(maxIdx);
+            
+            btnPlay.disabled = false;
+            btnPlay.classList.remove('opacity-50', 'cursor-not-allowed');
+            uiSelectStrategy.disabled = false;
+            isAnimating = false;
+        }
+
+        function revealAnswer() {
+            document.getElementById('btnCompare').classList.add('hidden');
+            thinkInput.disabled = true;
+            thinkInput.classList.add('bg-slate-100', 'text-slate-500', 'cursor-not-allowed', 'border-slate-200');
+            
+            const ansBox = document.getElementById('answerBox');
+            ansBox.classList.remove('hidden-content');
+            ansBox.classList.add('slide-down');
+        }
+
+        function handleWrongQuiz() {
+            document.getElementById('quizFeedback').classList.add('hidden-content');
+            document.getElementById('quizFeedbackWrong').classList.remove('hidden-content');
+            document.getElementById('quizFeedbackWrong').classList.add('slide-down');
+        }
+
+        function checkQuiz() {
+            const wrongFeedback = document.getElementById('quizFeedbackWrong');
+            const feedback = document.getElementById('quizFeedback');
+            const optContainer = document.getElementById('correctOption');
+            
+            wrongFeedback.classList.add('hidden-content');
+            feedback.classList.remove('hidden-content');
+            feedback.classList.add('slide-down');
+            
+            optContainer.classList.remove('hover:border-slate-300', 'hover:bg-slate-50');
+            optContainer.classList.add('border-emerald-500', 'bg-emerald-50');
+            document.querySelectorAll('input[name="quiz"]').forEach(r => r.disabled = true);
+        }
+
+        window.onload = () => {
+            setCodeLang('python');
+            updateViz();
+        };
+    </script>
+</body>
+</html>
